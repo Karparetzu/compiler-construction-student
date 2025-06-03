@@ -1,0 +1,28 @@
+%import common (NEWLINE, WS_INLINE, SH_COMMENT, CNAME, INT)
+%ignore WS_INLINE
+%ignore SH_COMMENT
+
+// Order of binding strength: exp_2 > exp_1 > exp
+exp_2: INT                    -> int_exp
+     | CNAME                  -> name_exp
+     | "(" exp ")"            -> paren_exp
+     | CNAME "(" args ")"     -> call_exp
+     | "-" exp_2              -> usub_exp
+
+exp_1: exp_1 "*" exp_2        -> mul_exp
+     | exp_2                  -> exp_2
+
+exp: exp "+" exp_1            -> add_exp
+   | exp "-" exp_1            -> sub_exp
+   | exp_1                    -> exp_1
+
+args: | exp ("," exp)*
+
+assign: CNAME "=" exp
+
+stmt: exp                     -> stmt_exp
+    | assign                  -> stmt_assign
+
+stmts: NEWLINE* (stmt NEWLINE+)*
+
+mod: stmts
