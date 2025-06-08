@@ -163,11 +163,11 @@ def compileExp(exp: exp) -> list[WasmInstr]:
 
             # Initialization of array, leaves array address on top of stack
             ret.extend(compileInitArray(length, tyOfAtomExp(elemInit)))
-            ret.append(WasmInstrVarLocal('tee', identToWasmId(Ident('@tmp_i32'))))  # Set $@tmp_i32 to array address, leave it on top of stack
-            ret.append(WasmInstrVarLocal('get', identToWasmId(Ident('@tmp_i32'))))
+            ret.append(WasmInstrVarLocal('tee', Locals.tmp_i32))  # Set $@tmp_i32 to array address, leave it on top of stack
+            ret.append(WasmInstrVarLocal('get', Locals.tmp_i32))
             ret.append(WasmInstrConst('i32', 4))
             ret.append(WasmInstrNumBinOp('i32', 'add'))
-            ret.append(WasmInstrVarLocal('set', identToWasmId(Ident('@tmp_i32'))))  # Set $@tmp_i32 to array address, leave it on top of stack
+            ret.append(WasmInstrVarLocal('set', Locals.tmp_i32))  # Set $@tmp_i32 to array address, leave it on top of stack
 
             # Loop
             elemLen = 4 if ((elemInit.ty is None) or tyToWasmValtype(elemInit.ty) == 'i32') else 8  # Item length in bytes
@@ -178,20 +178,20 @@ def compileExp(exp: exp) -> list[WasmInstr]:
 
             whileInstr: list[WasmInstr] = []
             
-            whileInstr.append(WasmInstrVarLocal('get', identToWasmId(Ident('@tmp_i32'))))
-            whileInstr.append(WasmInstrVarGlobal('get', identToWasmId(Ident('@free_ptr'))))
+            whileInstr.append(WasmInstrVarLocal('get', Locals.tmp_i32))
+            whileInstr.append(WasmInstrVarGlobal('get', Globals.freePtr))
             whileInstr.append(WasmInstrIntRelOp('i32','lt_u'))
 
             branchToExit = WasmInstrBranch(identToWasmId(Ident(f'loop_{currentWhileNo}_exit')), False)
             whileInstr.append(WasmInstrIf(None, [], [branchToExit]))
 
-            whileInstr.append(WasmInstrVarLocal('get', identToWasmId(Ident('@tmp_i32'))))
+            whileInstr.append(WasmInstrVarLocal('get', Locals.tmp_i32))
             whileInstr.append(compileAtomExp(AtomExp(elemInit)))
             whileInstr.append(WasmInstrMem(tyToWasmValtype(tyOfAtomExp(elemInit)), 'store'))
-            whileInstr.append(WasmInstrVarLocal('get', identToWasmId(Ident('@tmp_i32'))))
+            whileInstr.append(WasmInstrVarLocal('get', Locals.tmp_i32))
             whileInstr.append(WasmInstrConst('i32', elemLen))
             whileInstr.append(WasmInstrNumBinOp('i32','add'))
-            whileInstr.append(WasmInstrVarLocal('set', identToWasmId(Ident('@tmp_i32'))))
+            whileInstr.append(WasmInstrVarLocal('set', Locals.tmp_i32))
 
             branchToStart = WasmInstrBranch(identToWasmId(Ident(f'loop_{currentWhileNo}_start')), False)
             whileInstr.append(branchToStart)
@@ -223,8 +223,8 @@ def compileExp(exp: exp) -> list[WasmInstr]:
 
             for i, e in enumerate(elemInit):
                 # Read & write local var
-                ret += [WasmInstrVarLocal('tee', identToWasmId(Ident('@tmp_i32')))]
-                ret += [WasmInstrVarLocal('get', identToWasmId(Ident('@tmp_i32')))]
+                ret += [WasmInstrVarLocal('tee', Locals.tmp_i32)]
+                ret += [WasmInstrVarLocal('get', Locals.tmp_i32)]
 
                 # Add offset
                 ret += [WasmInstrConst('i32', 4 + (elemLen*(i))), WasmInstrNumBinOp('i32','add')]
@@ -274,7 +274,7 @@ def compileInitArray(lenExp: atomExp, elemTy: ty) -> list[WasmInstr]:
     ret = checkLength(lenExp, elemTy)
 
     # 3.1. Read free_ptr (yes, step 3 begins before step 2)
-    ret.append(WasmInstrVarGlobal('get', identToWasmId(Ident('@free_ptr'))))
+    ret.append(WasmInstrVarGlobal('get', Globals.freePtr))
 
     # 2. Compute header value
     # 2.1. Get value of M
@@ -297,16 +297,16 @@ def compileInitArray(lenExp: atomExp, elemTy: ty) -> list[WasmInstr]:
     elemLen = 4 if tyToWasmValtype(elemTy) == 'i32' else 8                      # Item length in bytes
 
     # 4. Move $@free_ptr and return array address
-    ret.append(WasmInstrVarGlobal('get', identToWasmId(Ident('@free_ptr'))))
+    ret.append(WasmInstrVarGlobal('get', Globals.freePtr))
     ret.append(compileAtomExp(AtomExp(lenExp)))                                 # Length to stack
     ret.extend([                                                                # Multiply length with the size of each element
         WasmInstrConvOp('i32.wrap_i64'),
         WasmInstrConst('i32', elemLen),
         WasmInstrNumBinOp('i32', 'mul')]) 
     ret.extend([WasmInstrConst('i32', 4), WasmInstrNumBinOp('i32', 'add')])     # Add 4 for the header
-    ret.append(WasmInstrVarGlobal('get', identToWasmId(Ident('@free_ptr'))))
+    ret.append(WasmInstrVarGlobal('get', Globals.freePtr))
     ret.append(WasmInstrNumBinOp('i32', 'add'))                                 # Add the space required by the array to $@free_ptr
-    ret.append(WasmInstrVarGlobal('set', identToWasmId(Ident('@free_ptr'))))    # Set free_ptr
+    ret.append(WasmInstrVarGlobal('set', Globals.freePtr))    # Set free_ptr
 
     return ret
 
