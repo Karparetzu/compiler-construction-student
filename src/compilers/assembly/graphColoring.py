@@ -32,30 +32,32 @@ def colorInterfGraph(g: InterfGraph, secondaryOrder: dict[tac.ident, int]={},
     colors: dict[tac.ident, int] = {}
     forbidden: dict[tac.ident, set[int]] = {}
     q = PrioQueue(secondaryOrder)
-
-    # 1. Get vertices of g -> w
-    w = set(g.vertices)
-
-    # Continue as long as w isn't empty
-    while len(w) > 0:
-        # 2. Get u with largest forbidden[u]
-        maxForbiddenCount = 0
-        canidates: list[tac.ident] = []
-        for i in w:
-            forbiddenCount = len(forbidden[i])
-            if maxForbiddenCount < forbiddenCount:
-                maxForbiddenCount = forbiddenCount
-                canidates = [i]
-            else:
-                canidates.append(i)
-           
-            for canidate in canidates:
-                q.push(canidate, secondaryOrder[canidate])
-            
-            u = q.pop()
-            
-            
-        # TODO: Get ident with highest priority
-
+    
+    # Initialize forbidden colors for each variable
+    for vertex in g.vertices:
+        forbidden[vertex] = set()
+    
+    # Initialize priority queue with all variables
+    # Priority is initially 0 since no neighbors are colored yet
+    for vertex in g.vertices:
+        q.push(vertex, 0)
+    
+    # Process variables in order of largest forbidden set
+    while not q.isEmpty():
+        # Get the variable with the largest forbidden set
+        x = q.pop()
+        
+        # Choose the lowest available color for this variable
+        color = chooseColor(x, forbidden)
+        colors[x] = color
+        
+        # Update forbidden colors for all uncolored neighbors
+        for neighbor in g.succs(x):
+            if neighbor not in colors:  # Only update uncolored neighbors
+                forbidden[neighbor].add(color)
+                # Increase priority of neighbor since its forbidden set grew
+                q.incPrio(neighbor, 1)
+    
+    # Create and return the register allocation map
     m = RegisterAllocMap(colors, maxRegs)
     return m
