@@ -50,6 +50,7 @@ def assignAddToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.pr
             ret.append(mips.OpI(mips.AddI(), mips.Reg(var.name), mips.Reg(var.name), mips.Imm(rValue)))
         case (tacSpill.Const(lValue), tacSpill.Name(rVar)):
             # r1 = 1 + r2
+            tmpName = getTmpRegName([var, rVar])                    
             ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(lValue)))
             ret.append(mips.Op(mips.Add(), mips.Reg(var.name), mips.Reg(tmpName), mips.Reg(rVar.name)))
     return ret
@@ -69,9 +70,7 @@ def assignLessThanToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpi
             ret.append(mips.OpI(mips.LessI(), mips.Reg(var.name), mips.Reg(var.name), mips.Imm(rValue)))
         case (tacSpill.Const(lValue), tacSpill.Name(rVar)):
             # r1 = 1 < r2
-            tmpRegNum = int(var.name[-1]) + 1 
-            tmpName = '$t' + str(tmpRegNum) if tmpRegNum <= 3 else '$s0'
-    
+            tmpName = getTmpRegName([var, rVar])
             ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(lValue)))
             ret.append(mips.Op(mips.Less(), mips.Reg(var.name), mips.Reg(tmpName), mips.Reg(rVar.name)))
     return ret
@@ -81,6 +80,7 @@ def assignOtherToMips(binOp: mips.op, var: tacSpill.Ident, left: tacSpill.prim, 
     match (left, right):
         case (tacSpill.Name(lVar), tacSpill.Const(rValue)):
             # r1 = r2 op 1
+            tmpName = getTmpRegName([var, lVar])
             ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(rValue)))
             ret.append(mips.Op(binOp, mips.Reg(var.name), mips.Reg(lVar.name), mips.Reg(tmpName)))
         case (tacSpill.Name(lVar), tacSpill.Name(rVar)):
@@ -88,11 +88,13 @@ def assignOtherToMips(binOp: mips.op, var: tacSpill.Ident, left: tacSpill.prim, 
             ret.append(mips.Op(binOp, mips.Reg(var.name), mips.Reg(lVar.name), mips.Reg(rVar.name)))
         case (tacSpill.Const(lValue), tacSpill.Const(rValue)):
             # r1 = 1 op 2
-            ret.append(mips.LoadI(mips.Reg(var.name), mips.Imm(lValue)))
-            ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(rValue)))
-            ret.append(mips.Op(binOp, mips.Reg(var.name), mips.Reg(tmpName), mips.Reg(tmpName)))
+            tmpName = getTmpRegName([var])
+            ret.append(mips.LoadI(mips.Reg(var.name), mips.Imm(lValue)))    # Load left value into r1
+            ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(rValue)))     # Load right value into tmp register
+            ret.append(mips.Op(binOp, mips.Reg(var.name), mips.Reg(var.name), mips.Reg(tmpName)))    # r1 = r1 + tmp
         case (tacSpill.Const(lValue), tacSpill.Name(rVar)):
             # r1 = 1 op r2
+            tmpName = getTmpRegName([var, rVar])
             ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(lValue)))
             ret.append(mips.Op(binOp, mips.Reg(var.name), mips.Reg(tmpName), mips.Reg(rVar.name)))
     return ret
@@ -117,3 +119,30 @@ def primToMips(p: tacSpill.prim) -> mips.Imm | mips.Reg:
             return mips.Imm(value)
         case tacSpill.Name(var):
             return mips.Reg(var.name)
+        
+def getTmpRegName(vars: list[tacSpill.Ident]) -> str:
+    '''
+    Gets the next possible free register based on a list of occupied registers
+    '''
+    maxRegLetter = 's'
+    maxRegNum = 0
+    for var in vars:
+        varNameLetter = var.name[1]
+        varNameNum = int(var.name[2])
+        
+        if maxRegLetter == varNameLetter and maxRegNum < varNameNum:
+            # If register kind is the same, pick the higher one of that kind
+            maxRegNum = varNameNum
+        elif maxRegLetter == 's' and varNameLetter == 't':
+            # If var is in t but max is in s, replace max
+            maxRegLetter = varNameLetter
+            maxRegNum = varNameNum
+    
+    if maxRegLetter == 't':
+        # If max register is either in t, increment it
+        newTmp = f'$t{maxRegNum + 1}'
+    else:
+        # Else the max register has to be in s, so we need $t0
+        newTmp = f'$t0'
+    
+    return newTmp

@@ -1,4 +1,6 @@
-x = 5
-c = 26 + (x + x) + (x + x)
-print(x)
-print(c)
+v = 1
+w = 42
+x = v + 7
+y = x
+z = x + w
+print(z + (- y))

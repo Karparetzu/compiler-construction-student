@@ -145,7 +145,8 @@ class InterfGraphBuilder:
         after = self.after[instrId] - defs
         for tgt in after:
             for src in defs:
-                interfG.addEdge(src, tgt)
+                if not isinstance(instr, tac.Assign) or src != tgt:
+                    interfG.addEdge(src, tgt)
 
     def build(self, g: ControlFlowGraph) -> InterfGraph:
         """
