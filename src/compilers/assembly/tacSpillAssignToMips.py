@@ -24,21 +24,18 @@ def assignPrimToMips(var: tacSpill.ident, p: tacSpill.prim) -> mips.instr:
 def assignBinOpToMips(var: tacSpill.Ident, binOp: tacSpill.BinOp) -> list[mips.instr]:
     ret: list[mips.instr] = []
 
-    tmpRegNum = int(var.name[-1]) + 1 
-    tmpName = '$t' + str(tmpRegNum) if tmpRegNum <= 3 else '$s0'
-    
     match binOp.op.name:
         case "ADD":
-            ret.extend(assignAddToMips(var, binOp.left, binOp.right, tmpName))
+            ret.extend(assignAddToMips(var, binOp.left, binOp.right))
         case "LT_S":
-            ret.extend(assignLessThanToMips(var, binOp.left, binOp.right, tmpName))    
+            ret.extend(assignLessThanToMips(var, binOp.left, binOp.right))    
         case _:
             mipsBinOp = getMipsBinOp(binOp.op)
-            ret.extend(assignOtherToMips(mipsBinOp, var, binOp.left, binOp.right, tmpName))    
+            ret.extend(assignOtherToMips(mipsBinOp, var, binOp.left, binOp.right))    
     
     return ret
 
-def assignAddToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.prim, tmpName: str) -> list[mips.instr]:
+def assignAddToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.prim) -> list[mips.instr]:
     ret: list[mips.instr] = []
     match (left, right):
         case (tacSpill.Name(lVar), tacSpill.Const(rValue)):
@@ -57,7 +54,7 @@ def assignAddToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.pr
             ret.append(mips.Op(mips.Add(), mips.Reg(var.name), mips.Reg(tmpName), mips.Reg(rVar.name)))
     return ret
 
-def assignLessThanToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.prim, tmpName: str) -> list[mips.instr]:
+def assignLessThanToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.prim) -> list[mips.instr]:
     ret: list[mips.instr] = []
     match (left, right):
         case (tacSpill.Name(lVar), tacSpill.Const(rValue)):
@@ -72,11 +69,14 @@ def assignLessThanToMips(var: tacSpill.Ident, left: tacSpill.prim, right: tacSpi
             ret.append(mips.OpI(mips.LessI(), mips.Reg(var.name), mips.Reg(var.name), mips.Imm(rValue)))
         case (tacSpill.Const(lValue), tacSpill.Name(rVar)):
             # r1 = 1 < r2
+            tmpRegNum = int(var.name[-1]) + 1 
+            tmpName = '$t' + str(tmpRegNum) if tmpRegNum <= 3 else '$s0'
+    
             ret.append(mips.LoadI(mips.Reg(tmpName), mips.Imm(lValue)))
             ret.append(mips.Op(mips.Less(), mips.Reg(var.name), mips.Reg(tmpName), mips.Reg(rVar.name)))
     return ret
 
-def assignOtherToMips(binOp: mips.op, var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.prim, tmpName: str) -> list[mips.instr]:
+def assignOtherToMips(binOp: mips.op, var: tacSpill.Ident, left: tacSpill.prim, right: tacSpill.prim) -> list[mips.instr]:
     ret: list[mips.instr] = []
     match (left, right):
         case (tacSpill.Name(lVar), tacSpill.Const(rValue)):
