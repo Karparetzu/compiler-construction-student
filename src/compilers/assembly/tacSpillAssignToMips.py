@@ -18,12 +18,11 @@ def assignPrimToMips(var: tacSpill.ident, p: tacSpill.prim) -> mips.instr:
     match p:
         case tacSpill.Const(value):
             return mips.LoadI(mips.Reg(var.name), mips.Imm(value))
-        case tacSpill.Name(var):
-            return mips.Move(mips.Reg(var.name), mips.Reg(var.name))
+        case tacSpill.Name(right):
+            return mips.Move(mips.Reg(var.name), mips.Reg(right.name))
         
 def assignBinOpToMips(var: tacSpill.Ident, binOp: tacSpill.BinOp) -> list[mips.instr]:
     ret: list[mips.instr] = []
-
     match binOp.op.name:
         case "ADD":
             ret.extend(assignAddToMips(var, binOp.left, binOp.right))
@@ -113,13 +112,6 @@ def getMipsBinOp(binOp: tacSpill.op) -> mips.op:
         case _:
             raise ValueError(f'Unknown binary operator: {binOp.name}')
 
-def primToMips(p: tacSpill.prim) -> mips.Imm | mips.Reg:
-    match p:
-        case tacSpill.Const(value):
-            return mips.Imm(value)
-        case tacSpill.Name(var):
-            return mips.Reg(var.name)
-        
 def getTmpRegName(vars: list[tacSpill.Ident]) -> str:
     '''
     Gets the next possible free register based on a list of occupied registers
